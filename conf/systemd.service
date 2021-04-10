@@ -1,0 +1,19 @@
+[Unit]
+Description=MeshCentral Server
+
+[Service]
+Type=simple
+LimitNOFILE=1000000
+User=__APP__
+Group=__APP__
+WorkingDirectory=/home/__APP__
+ExecStart=/usr/bin/node /home/__APP__/node_modules/meshcentral --cert __DOMAIN__
+StandardOutput=append:/var/log/__APP__/__APP__.log
+StandardError=inherit
+Environment=NODE_ENV=production
+Restart=always
+# Restart service after 10 seconds if node service crashes
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
