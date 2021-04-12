@@ -25,11 +25,8 @@ ynh_abort_if_errors
 #=================================================
 
 domain=$YNH_APP_ARG_DOMAIN
-path_url=$YNH_APP_ARG_PATH
-admin=$YNH_APP_ARG_ADMIN
 is_public=$YNH_APP_ARG_IS_PUBLIC
-#language=$YNH_APP_ARG_LANGUAGE
-#password=$YNH_APP_ARG_PASSWORD
+
 
 ### If it's a multi-instance app, meaning it can be installed several times independently
 ### The id of the app as stated in the manifest is available as $YNH_APP_ID
@@ -41,7 +38,7 @@ is_public=$YNH_APP_ARG_IS_PUBLIC
 ### The app instance name is probably what interests you most, since this is
 ### guaranteed to be unique. This is a good unique identifier to define installation path,
 ### db names...
-app=$YNH_APP_INSTANCE_NAME
+#app=$YNH_APP_INSTANCE_NAME
 
 #=================================================
 # CHECK IF THE APP CAN BE INSTALLED WITH THESE ARGS
@@ -115,6 +112,15 @@ ynh_script_progression --message="Installing dependencies..." --time --weight=1
 ynh_install_nodejs
 ynh_use_nodejs 
 
+
+#=================================================
+# INSTALL NODEJS
+#=================================================
+ynh_script_progression --message="Installing NodeJS..." --weight=12
+
+ynh_install_nodejs --nodejs_version=$nodejs_version
+
+
 #=================================================
 # CREATE A MYSQL DATABASE
 #=================================================
@@ -166,13 +172,20 @@ ynh_script_progression --message="Configuring system user..." --time --weight=1
 ynh_system_user_create --username=$app
 
 #=================================================
-# SPECIFIC SETUP
+# Install MeshCentral
 #=================================================
-# ...
-#=================================================
+ynh_script_progression --message="Installing MeshCentral..." --weight=90
 
-ynh\_exec\_as $app $ynh\_node\_load\_PATH $ynh\_npm install meshcentral
-#ynh\_exec\_as $app $ynh\_node\_load\_PATH $ynh\_node ./node_modules/meshcentral --cert $YNH_APP_ARG_DOMAIN
+# Install dependencies and proceed to the installation
+ynh_use_nodejs
+(
+    cd "$final_path"
+    mkdir -p node_modules
+	ynh_exec_as $app PATH="$nodejs_path:$PATH" "$nodejs_path/npm" install meshcentral@$meshcentral_version --save --loglevel warn
+    cd node_modules
+    cd meshcentral
+    chown -R $app: $final_path
+)
 
 #=================================================
 # SETUP SYSTEMD
@@ -192,27 +205,6 @@ ynh_script_progression --message="Configuring a systemd service..." --time --wei
 
 # Create a dedicated systemd config
 ynh_add_systemd_config
-
-#=================================================
-# SETUP APPLICATION WITH CURL
-#=================================================
-
-### Use these lines only if the app installation needs to be finalized through
-### web forms. We generally don't want to ask the final user,
-### so we're going to use curl to automatically fill the fields and submit the
-### forms.
-
-# Set the app as temporarily public for curl call
-#ynh_script_progression --message="Configuring SSOwat..." --time --weight=1
-# Making the app public for curl
-#ynh_permission_update --permission="main" --add="visitors"
-
-# Installation with curl
-#ynh_script_progression --message="Finalizing installation..." --time --weight=1
-#ynh_local_curl "/INSTALL_PATH" "key1=value1" "key2=value2" "key3=value3"
-
-# Remove the public access
-#ynh_permission_update --permission="main" --remove="visitors"
 
 #=================================================
 # ADD A CONFIGURATION
@@ -282,7 +274,8 @@ ynh_script_progression --message="Integrating service in YunoHost..." --time --w
 ###		- As well as the section "INTEGRATE SERVICE IN YUNOHOST" in the restore script
 ###		- And the section "INTEGRATE SERVICE IN YUNOHOST" in the upgrade script
 
-yunohost service add $app --description="A short description of the app" --log="/var/log/$app/$app.log"
+yunohost service add $app --description="Service MeshCentral" --log="/var/log/$app/$app.log" \
+--needs_exposed_ports "$port"
 
 ### Additional options starting with 3.8:
 ###
