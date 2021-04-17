@@ -26,6 +26,7 @@ ynh_abort_if_errors
 
 domain=$YNH_APP_ARG_DOMAIN
 is_public=$YNH_APP_ARG_IS_PUBLIC
+path_url="/"
 
 
 ### If it's a multi-instance app, meaning it can be installed several times independently
@@ -38,7 +39,7 @@ is_public=$YNH_APP_ARG_IS_PUBLIC
 ### The app instance name is probably what interests you most, since this is
 ### guaranteed to be unique. This is a good unique identifier to define installation path,
 ### db names...
-#app=$YNH_APP_INSTANCE_NAME
+app=$YNH_APP_INSTANCE_NAME
 
 #=================================================
 # CHECK IF THE APP CAN BE INSTALLED WITH THESE ARGS
@@ -59,7 +60,7 @@ final_path=/opt/yunohost/$app
 test ! -e "$final_path" || ynh_die --message="This path already contains a folder"
 
 # Register (book) web path
-ynh_webpath_register --app=$app --domain=$domain --path_url=$path_url
+ynh_webpath_register --app=$app --domain=$domain --path_url="$path_url"
 
 #=================================================
 # STORE SETTINGS FROM MANIFEST
@@ -68,7 +69,7 @@ ynh_script_progression --message="Storing installation settings..." --time --wei
 
 ynh_app_setting_set --app=$app --key=domain --value=$domain
 ynh_app_setting_set --app=$app --key=path --value=$path_url
-ynh_app_setting_set --app=$app --key=admin --value=$admin
+#ynh_app_setting_set --app=$app --key=admin --value=$admin
 #ynh_app_setting_set --app=$app --key=language --value=$language
 
 #=================================================
@@ -109,8 +110,8 @@ ynh_script_progression --message="Installing dependencies..." --time --weight=1
 ###		- And the section "UPGRADE DEPENDENCIES" in the upgrade script
 
 #ynh_install_app_dependencies $pkg_dependencies
-ynh_install_nodejs
-ynh_use_nodejs 
+
+ 
 
 
 #=================================================
@@ -169,7 +170,7 @@ ynh_add_nginx_config
 ynh_script_progression --message="Configuring system user..." --time --weight=1
 
 # Create a system user
-ynh_system_user_create --username=$app
+ynh_system_user_create --username=$app --home_dir=$final_path
 
 #=================================================
 # Install MeshCentral
@@ -177,14 +178,15 @@ ynh_system_user_create --username=$app
 ynh_script_progression --message="Installing MeshCentral..." --weight=90
 
 # Install dependencies and proceed to the installation
-ynh_use_nodejs
+ynh_use_nodejs 
 (
-    cd "$final_path"
+    mkdir -p $final_path
+	cd "$final_path"
     mkdir -p node_modules
-	ynh_exec_as $app PATH="$nodejs_path:$PATH" "$nodejs_path/npm" install meshcentral@$meshcentral_version --save --loglevel warn
+    chown -R $app: $final_path
+	ynh_exec_as $app PATH="$nodejs_path:$PATH" "$nodejs_path/npm" install meshcentral@$meshcentral_version --loglevel warn --no-save
     cd node_modules
     cd meshcentral
-    chown -R $app: $final_path
 )
 
 #=================================================
